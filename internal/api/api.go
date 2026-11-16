@@ -153,6 +153,10 @@ func (h *Handler) routes() {
 	h.mux.HandleFunc("/v1/disputes", h.handleDisputes)
 	h.mux.HandleFunc("/v1/disputes/", h.handleDispute)
 	h.mux.HandleFunc("/v1/charges/", h.handleChargeSubresource)
+	h.mux.HandleFunc("/v1/charges", h.handleCharges)
+	h.mux.HandleFunc("/v1/balance", h.handleBalance)
+	h.mux.HandleFunc("/v1/balance_transactions", h.handleBalanceTransactions)
+	h.mux.HandleFunc("/v1/balance_transactions/", h.handleBalanceTransaction)
 	h.mux.HandleFunc("/v1/test_helpers/customers/", h.handleTestHelperCustomer)
 	h.mux.HandleFunc("/v1/test_helpers/test_clocks", h.handleTestClocks)
 	h.mux.HandleFunc("/v1/test_helpers/test_clocks/", h.handleTestClock)
@@ -8977,6 +8981,12 @@ func (h *Handler) handleCharge(w http.ResponseWriter, r *http.Request, chargeID 
 		return
 	}
 	refunds, _ := h.billing.ListRefunds(r.Context(), billing.RefundFilter{ChargeID: chargeID})
+	writeJSON(w, http.StatusOK, stripeCharge(intent, refunds))
+}
+
+// stripeCharge is the charge of a PaymentIntent that made one, with its refunds.
+func stripeCharge(intent billing.PaymentIntent, refunds []billing.Refund) map[string]any {
+	chargeID := paymentIntentChargeID(intent)
 	refunded := int64(0)
 	refundData := make([]map[string]any, 0, len(refunds))
 	for _, refund := range refunds {
@@ -8990,7 +9000,7 @@ func (h *Handler) handleCharge(w http.ResponseWriter, r *http.Request, chargeID 
 	if captured {
 		amountCaptured = intent.Amount
 	}
-	writeJSON(w, http.StatusOK, map[string]any{
+	return map[string]any{
 		"id":                  chargeID,
 		"object":              "charge",
 		"amount":              intent.Amount,
@@ -9011,7 +9021,7 @@ func (h *Handler) handleCharge(w http.ResponseWriter, r *http.Request, chargeID 
 		"refunded":            refunded > 0 && refunded >= intent.Amount,
 		"refunds":             stripeList("/v1/refunds?charge="+url.QueryEscape(chargeID), refundData),
 		"status":              "succeeded",
-	})
+	}
 }
 
 func stripeChargeFromRefund(refund billing.Refund) map[string]any {
