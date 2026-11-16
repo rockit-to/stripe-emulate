@@ -191,6 +191,12 @@ func (h *Handler) expandableObject(r *http.Request, id string) (any, bool) {
 			return nil, false
 		}
 		object = stripeCharge(intent, refunds)
+	case strings.HasPrefix(id, "re_"):
+		refund, err := h.billing.GetRefund(ctx, id)
+		if err != nil {
+			return nil, false
+		}
+		object = stripeRefund(refund)
 	case strings.HasPrefix(id, "txn_"):
 		intent, err := h.billing.GetPaymentIntent(ctx, strings.TrimPrefix(id, "txn_"))
 		if err != nil {

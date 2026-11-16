@@ -64,6 +64,10 @@ func TestPaymentsAsTheDashboardListsThem(t *testing.T) {
 			t.Fatalf("refund balance transaction = %v %v", txn["currency"], txn["description"])
 		}
 	}
+	expanded := getJSON[map[string]any](t, handler, "/v1/balance_transactions?type=refund&expand[]=data.source")["data"].([]any)[0].(map[string]any)
+	if expanded["source"].(map[string]any)["charge"] != charge {
+		t.Fatalf("refund transaction source = %v, want the refund of %s", expanded["source"], charge)
+	}
 	chargeTxn := getJSON[map[string]any](t, handler, "/v1/balance_transactions?type=charge")["data"].([]any)[0].(map[string]any)
 	if chargeTxn["description"] != "Booking FLT-4823 · Antwerp studio" {
 		t.Fatalf("charge balance transaction description = %v", chargeTxn["description"])
