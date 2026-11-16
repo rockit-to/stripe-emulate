@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -1079,11 +1080,20 @@ func disputeEvidence(id string, chargeID string, amount int64, currency string, 
 	}
 }
 
+// evidenceList: the items newest first, as Stripe lists them (by created; within one second by id).
 func evidenceList(items map[string]map[string]any) []map[string]any {
 	data := make([]map[string]any, 0, len(items))
 	for _, item := range items {
 		data = append(data, cloneEvidence(item))
 	}
+	sort.SliceStable(data, func(i, j int) bool {
+		a, _ := asInt64Evidence(data[i]["created"])
+		b, _ := asInt64Evidence(data[j]["created"])
+		if a != b {
+			return a > b
+		}
+		return fmt.Sprint(data[i]["id"]) > fmt.Sprint(data[j]["id"])
+	})
 	return data
 }
 

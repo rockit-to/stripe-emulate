@@ -35,4 +35,8 @@ func TestShippingRatesFeaturesAndTaxTypes(t *testing.T) {
 	if tax["tax_type"] != "vat" {
 		t.Fatalf("tax rate tax_type = %v, want vat", tax["tax_type"])
 	}
+	newer := postForm[map[string]any](t, handler, "/v1/tax_rates", url.Values{"display_name": {"GST"}, "percentage": {"9"}, "inclusive": {"false"}})
+	if first := getJSON[map[string]any](t, handler, "/v1/tax_rates")["data"].([]any)[0].(map[string]any); first["id"] != newer["id"] {
+		t.Fatalf("first tax rate = %v, want the newest %v", first["id"], newer["id"])
+	}
 }
