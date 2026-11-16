@@ -413,6 +413,8 @@ func connectResourcePrefix(object string) string {
 		return "fee"
 	case ObjectFeeRefund:
 		return "fr"
+	case ObjectTopup:
+		return "tu"
 	default:
 		return "conn"
 	}

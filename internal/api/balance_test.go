@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/chelokot/stripe-emulate/internal/billing"
@@ -78,7 +79,7 @@ func TestBalanceChargesAndBalanceTransactions(t *testing.T) {
 	if available["amount"].(float64) != 2000 || available["source_types"].(map[string]any)["bank_account"].(float64) != 2000 {
 		t.Fatalf("available after a top-up = %#v, want 2000 from bank_account", available)
 	}
-	if topups := getJSON[map[string]any](t, handler, "/v1/topups")["data"].([]any); len(topups) != 1 || topups[0].(map[string]any)["status"] != "succeeded" {
+	if topups := getJSON[map[string]any](t, handler, "/v1/topups")["data"].([]any); len(topups) != 1 || topups[0].(map[string]any)["status"] != "succeeded" || !strings.HasPrefix(topups[0].(map[string]any)["id"].(string), "tu_") {
 		t.Fatalf("topups = %#v", topups)
 	}
 }
