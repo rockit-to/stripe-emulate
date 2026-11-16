@@ -28,6 +28,7 @@ const (
 	ObjectPayout           = "payout"
 	ObjectApplicationFee   = "application_fee"
 	ObjectFeeRefund        = "fee_refund"
+	ObjectTopup            = "topup"
 )
 
 const (

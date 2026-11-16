@@ -759,6 +759,23 @@ func validatePayoutCreate(p params) error {
 	})
 }
 
+func validateTopupCreate(p params) error {
+	return p.validate(paramSpec{
+		Allowed:       []string{"id", "amount", "currency", "description", "statement_descriptor", "transfer_group"},
+		Required:      []string{"amount", "currency"},
+		Int64Params:   []string{"amount"},
+		Positive:      []string{"amount"},
+		AllowMetadata: true,
+	})
+}
+
+func validateTopupUpdate(p params) error {
+	return p.validate(paramSpec{
+		Allowed:       []string{"description"},
+		AllowMetadata: true,
+	})
+}
+
 func validatePayoutUpdate(p params) error {
 	return p.validate(paramSpec{
 		Allowed:       []string{"description"},

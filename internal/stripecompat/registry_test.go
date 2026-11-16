@@ -8,8 +8,8 @@ import (
 func TestDefaultRegistryContainsCurrentPublicClaims(t *testing.T) {
 	registry := DefaultRegistry()
 	claims := registry.Claims()
-	if len(claims) != 213 {
-		t.Fatalf("default claims = %d, want 213", len(claims))
+	if len(claims) != 218 {
+		t.Fatalf("default claims = %d, want 218", len(claims))
 	}
 
 	checkout, ok := registry.Lookup(http.MethodPost, "/v1/checkout/sessions")

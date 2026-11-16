@@ -122,6 +122,8 @@ func (h *Handler) routes() {
 	h.mux.HandleFunc("/v1/transfers/", h.handleTransfer)
 	h.mux.HandleFunc("/v1/payouts", h.handlePayouts)
 	h.mux.HandleFunc("/v1/payouts/", h.handlePayout)
+	h.mux.HandleFunc("/v1/topups", h.handleTopups)
+	h.mux.HandleFunc("/v1/topups/", h.handleTopup)
 	h.mux.HandleFunc("/v1/checkout/sessions", h.handleCheckoutSessions)
 	h.mux.HandleFunc("/v1/checkout/sessions/", h.handleCheckoutSession)
 	h.mux.HandleFunc("/v1/billing_portal/sessions", h.handleBillingPortalSessions)
@@ -8982,11 +8984,12 @@ func stripeBalanceTransaction(intent billing.PaymentIntent) map[string]any {
 	}
 	// ponytail: fixed simulated 2.9% + 30 fee; make it configurable if a test asserts real pricing.
 	fee := intent.Amount*29/1000 + 30
+	availableOn := intent.CreatedAt.Add(settlementDelay)
 	return map[string]any{
 		"id":                 "txn_" + intent.ID,
 		"object":             "balance_transaction",
 		"amount":             amountCaptured,
-		"available_on":       unix(intent.CreatedAt),
+		"available_on":       unix(availableOn),
 		"created":            unix(intent.CreatedAt),
 		"currency":           intent.Currency,
 		"description":        nil,
@@ -8996,7 +8999,7 @@ func stripeBalanceTransaction(intent billing.PaymentIntent) map[string]any {
 		"net":                amountCaptured - fee,
 		"reporting_category": "charge",
 		"source":             paymentIntentChargeID(intent),
-		"status":             "available",
+		"status":             settlementStatus(availableOn),
 		"type":               "charge",
 	}
 }
