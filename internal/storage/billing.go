@@ -350,7 +350,7 @@ func (s *SQLiteStore) UpdateAccount(ctx context.Context, id string, in billing.A
 		current.Capabilities = mergeStringMap(current.Capabilities, in.Capabilities)
 	}
 	if in.Metadata != nil {
-		current.Metadata = mergeStringMap(current.Metadata, in.Metadata)
+		current.Metadata = mergeMetadata(current.Metadata, in.Metadata)
 		if _, rejected := in.Metadata["rejected_reason"]; rejected {
 			current.ChargesEnabled = false
 			current.PayoutsEnabled = false
@@ -363,6 +363,17 @@ func (s *SQLiteStore) UpdateAccount(ctx context.Context, id string, in billing.A
 		return billing.Account{}, err
 	}
 	return s.GetAccount(ctx, id)
+}
+
+// mergeMetadata: Stripe's metadata update, where a key set to "" is removed.
+func mergeMetadata(current map[string]string, patch map[string]string) map[string]string {
+	merged := mergeStringMap(current, patch)
+	for key, value := range patch {
+		if value == "" {
+			delete(merged, key)
+		}
+	}
+	return merged
 }
 
 func mergeStringMap(current map[string]string, patch map[string]string) map[string]string {
@@ -483,7 +494,7 @@ func (s *SQLiteStore) UpdateConnectResource(ctx context.Context, object string, 
 		current.ArrivalDate = in.ArrivalDate
 	}
 	if in.Metadata != nil {
-		current.Metadata = mergeStringMap(current.Metadata, in.Metadata)
+		current.Metadata = mergeMetadata(current.Metadata, in.Metadata)
 	}
 	if in.Data != nil {
 		current.Data = mergeStringMap(current.Data, in.Data)

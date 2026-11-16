@@ -61,3 +61,13 @@ func TestCouponCurrencyOptions(t *testing.T) {
 		t.Fatalf("currency_options = %v", coupon["currency_options"])
 	}
 }
+
+func TestFeatureMetadataUnset(t *testing.T) {
+	handler := newTestHandler(t)
+	feature := postForm[map[string]any](t, handler, "/v1/entitlements/features", url.Values{"name": {"F"}, "lookup_key": {"f"}, "metadata[tier]": {"gold"}})
+	id := feature["id"].(string)
+	updated := postForm[map[string]any](t, handler, "/v1/entitlements/features/"+id, url.Values{"metadata[tier]": {""}})
+	if _, ok := updated["metadata"].(map[string]any)["tier"]; ok {
+		t.Fatalf("metadata = %v, want tier removed", updated["metadata"])
+	}
+}
