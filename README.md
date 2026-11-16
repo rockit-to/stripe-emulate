@@ -33,6 +33,16 @@ curl localhost:8080/v1/webhook_endpoints -u sk_test_emulator: \
 
 Objects accept your own ids (`-d id=prod_plus`), so seeded configs can reference them. Complete a checkout on its hosted page, or headlessly with `POST /v1/checkout/sessions/{id}/complete`.
 
+### An account per key
+
+Each run (`/runs/<run>/…`) has its own database. With `STRIPE_EMULATE_KEY_SECRET` set, a key selects its run the way a Stripe key selects its account, so an SDK needs nothing but the key:
+
+```
+sk_test_<run>_<signature>     signature = first 24 hex characters of HMAC-SHA256(secret, run)
+```
+
+Whoever holds the secret hands keys out; nothing is stored. A run key with a wrong signature gets Stripe's `401 Invalid API Key provided`; `sk_test_emulator` and any other key stay on the default run. Hosted pages of a keyed request (a checkout's `url`) are under `/runs/<run>/`.
+
 ## How close to Stripe is it
 
 Three independent checks run in CI; each run's numbers land in the [job summary](https://github.com/chelokot/stripe-emulate/actions/workflows/ci.yml).

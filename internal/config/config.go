@@ -24,6 +24,7 @@ const (
 	envRetentionDays          = "STRIPE_EMULATE_RETENTION_DAYS"
 	envWebhookAPIVersion      = "STRIPE_EMULATE_WEBHOOK_API_VERSION"
 	envRequestLog             = "STRIPE_EMULATE_REQUEST_LOG"
+	envKeySecret              = "STRIPE_EMULATE_KEY_SECRET"
 
 	RawPayloadStore        = "store"
 	RawPayloadMetadataOnly = "metadata_only"
@@ -46,6 +47,9 @@ type Config struct {
 	WebhookAPIVersion string `json:"webhook_api_version"`
 	// RequestLogDisabled turns off the per-request log line (on by default).
 	RequestLogDisabled bool `json:"request_log_disabled"`
+	// KeySecret signs the API keys of named runs (sk_test_<run>_<signature>), so a key selects its run as a
+	// Stripe key selects its account. Empty: keys select nothing and requests use the default run.
+	KeySecret string `json:"key_secret"`
 }
 
 func Default() Config {
@@ -124,6 +128,9 @@ func LoadWithLookup(path string, lookup LookupFunc) (Config, error) {
 	}
 	if value, ok := lookup(envRequestLog); ok {
 		cfg.RequestLogDisabled = !parseBool(value)
+	}
+	if value, ok := lookup(envKeySecret); ok {
+		cfg.KeySecret = value
 	}
 	if cfg.RelayMode {
 		cfg.RawPayloadStorage = RawPayloadMetadataOnly

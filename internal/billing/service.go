@@ -505,7 +505,7 @@ func defaultConnectResourceStatus(object string) string {
 }
 
 func (s *Service) CreateCheckoutSession(ctx context.Context, in CheckoutSession) (CheckoutSession, error) {
-	if strings.TrimSpace(in.CustomerID) == "" {
+	if strings.TrimSpace(in.CustomerID) == "" && in.Mode != "payment" {
 		return CheckoutSession{}, fmt.Errorf("%w: customer is required", ErrInvalidInput)
 	}
 	if len(in.LineItems) == 0 {

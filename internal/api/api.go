@@ -1672,12 +1672,17 @@ func (h *Handler) handleCheckoutSessions(w http.ResponseWriter, r *http.Request)
 			writeError(w, http.StatusBadRequest, err)
 			return
 		}
-		customer, err := h.billing.GetCustomer(r.Context(), p.first("customer", "customer_id"))
-		if err := validateCustomerExists(customer, err); err != nil {
-			writeResult(w, nil, err)
-			return
-		}
 		mode := p.stringDefault("mode", "subscription")
+		// A payment needs no customer: Stripe collects the buyer's details on its page (customer_creation
+		// if_required). A subscription belongs to one.
+		var customer billing.Customer
+		if customerID := p.first("customer", "customer_id"); customerID != "" || mode != "payment" {
+			customer, err = h.billing.GetCustomer(r.Context(), customerID)
+			if err := validateCustomerExists(customer, err); err != nil {
+				writeResult(w, nil, err)
+				return
+			}
+		}
 		lineItems, err := h.resolveCheckoutLineItems(r.Context(), p)
 		if err != nil {
 			writeResult(w, nil, err)

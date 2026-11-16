@@ -889,7 +889,7 @@ func validateCheckoutSessionCreate(p params) error {
 	if len(lineItemIndexes) == 0 && !p.has("price") {
 		return &validationError{Message: fmt.Sprintf("The `line_items` parameter is required in %s mode.", mode)}
 	}
-	if !p.hasAny("customer", "customer_id") {
+	if mode != "payment" && !p.hasAny("customer", "customer_id") {
 		return missingParam("customer")
 	}
 	if _, err := p.checkoutLineTaxRateIDs(mode); err != nil {

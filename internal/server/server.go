@@ -92,6 +92,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			request = scoped
+		} else if run, keyed, valid := runOfKey(s.cfg.KeySecret, request); keyed {
+			if !valid {
+				writeInvalidKey(w, request)
+				return
+			}
+			request = scopeToRun(request, run, request.URL.Path)
 		}
 	}
 	s.mux.ServeHTTP(w, request)
@@ -191,6 +197,11 @@ func (s *Server) requestWithRunScope(r *http.Request) (*http.Request, string, bo
 	if !ok {
 		return r, "", false, nil
 	}
+	return scopeToRun(r, runID, rest), runID, true, nil
+}
+
+// scopeToRun serves r from run's store, at path; the pages it links to (a checkout's url) are under /runs/<run>.
+func scopeToRun(r *http.Request, runID string, path string) *http.Request {
 	clone := r.Clone(r.Context())
 	clone.Header = r.Header.Clone()
 	clone = clone.WithContext(context.WithValue(clone.Context(), runContextKey{}, runID))
@@ -198,10 +209,10 @@ func (s *Server) requestWithRunScope(r *http.Request) (*http.Request, string, bo
 	clone.Header.Set("X-Forwarded-Prefix", joinURLPath(forwardedPrefix(r), "/runs/"+runID))
 
 	u := *r.URL
-	u.Path = rest
+	u.Path = path
 	u.RawPath = ""
 	clone.URL = &u
-	return clone, runID, true, nil
+	return clone
 }
 
 func parseRunPath(path string) (string, string, bool, error) {
