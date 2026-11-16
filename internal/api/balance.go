@@ -155,7 +155,8 @@ func (h *Handler) handleBalanceTransaction(w http.ResponseWriter, r *http.Reques
 }
 
 // balanceTransactions: a charge for each succeeded PaymentIntent, a refund for each refund that went through,
-// a payout for each payout of this account (the request's Stripe-Account) that did not fail; newest first.
+// a top-up and a payout for each of this account's (the request's Stripe-Account) that went through; newest first,
+// by when each happened (created is in whole seconds, and several can happen within one).
 func (h *Handler) balanceTransactions(r *http.Request) ([]map[string]any, error) {
 	intents, err := h.billing.ListPaymentIntents(r.Context())
 	if err != nil {
@@ -165,15 +166,23 @@ func (h *Handler) balanceTransactions(r *http.Request) ([]map[string]any, error)
 	if err != nil {
 		return nil, err
 	}
+	topups, err := h.billing.ListConnectResources(r.Context(), billing.ConnectResourceFilter{Object: billing.ObjectTopup, Status: "succeeded"})
+	if err != nil {
+		return nil, err
+	}
 	payouts, err := h.billing.ListConnectResources(r.Context(), billing.ConnectResourceFilter{Object: billing.ObjectPayout})
 	if err != nil {
 		return nil, err
 	}
-	out := []map[string]any{}
+	type dated struct {
+		at  time.Time
+		txn map[string]any
+	}
+	all := []dated{}
 	descriptions := map[string]string{}
 	for _, intent := range intents {
 		if intent.Status == "succeeded" {
-			out = append(out, stripeBalanceTransaction(intent))
+			all = append(all, dated{intent.CreatedAt, stripeBalanceTransaction(intent)})
 		}
 		descriptions[intent.ID] = intent.Metadata["emulator_description"]
 	}
@@ -184,33 +193,32 @@ func (h *Handler) balanceTransactions(r *http.Request) ([]map[string]any, error)
 			if description := descriptions[refund.PaymentIntentID]; description != "" {
 				txn["description"] = "REFUND FOR CHARGE (" + description + ")"
 			}
-			out = append(out, txn)
-		}
-	}
-	topups, err := h.billing.ListConnectResources(r.Context(), billing.ConnectResourceFilter{Object: billing.ObjectTopup, Status: "succeeded"})
-	if err != nil {
-		return nil, err
-	}
-	for _, topup := range topups {
-		if topup.AccountID == r.Header.Get("Stripe-Account") {
-			txn := balanceMovement("txn_"+topup.ID, topup.ID, "topup", topup.Amount, strings.ToLower(topup.Currency), topup.CreatedAt, topup.CreatedAt)
-			txn["description"] = emptyToNil(topup.Description)
-			out = append(out, txn)
+			all = append(all, dated{refund.CreatedAt, txn})
 		}
 	}
 	account := r.Header.Get("Stripe-Account")
-	for _, payout := range payouts {
-		if payout.AccountID != account || payout.Status == "failed" || payout.Status == "canceled" {
-			continue
+	for _, topup := range topups {
+		if topup.AccountID == account {
+			txn := balanceMovement("txn_"+topup.ID, topup.ID, "topup", topup.Amount, strings.ToLower(topup.Currency), topup.CreatedAt, topup.CreatedAt)
+			txn["description"] = emptyToNil(topup.Description)
+			all = append(all, dated{topup.CreatedAt, txn})
 		}
-		out = append(out, balanceMovement("txn_"+payout.ID, payout.ID, "payout", -payout.Amount, strings.ToLower(payout.Currency), payout.CreatedAt, payout.CreatedAt))
 	}
-	sort.SliceStable(out, func(i, j int) bool {
-		if out[i]["created"] != out[j]["created"] {
-			return out[i]["created"].(int64) > out[j]["created"].(int64)
+	for _, payout := range payouts {
+		if payout.AccountID == account && payout.Status != "failed" && payout.Status != "canceled" {
+			all = append(all, dated{payout.CreatedAt, balanceMovement("txn_"+payout.ID, payout.ID, "payout", -payout.Amount, strings.ToLower(payout.Currency), payout.CreatedAt, payout.CreatedAt)})
 		}
-		return out[i]["id"].(string) > out[j]["id"].(string)
+	}
+	sort.SliceStable(all, func(i, j int) bool {
+		if !all[i].at.Equal(all[j].at) {
+			return all[i].at.After(all[j].at)
+		}
+		return all[i].txn["id"].(string) > all[j].txn["id"].(string)
 	})
+	out := make([]map[string]any, len(all))
+	for i, entry := range all {
+		out[i] = entry.txn
+	}
 	return out, nil
 }
 
