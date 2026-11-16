@@ -53,3 +53,11 @@ func TestPromotionCodeRestrictions(t *testing.T) {
 		t.Fatalf("promotion code = %v", promo)
 	}
 }
+
+func TestCouponCurrencyOptions(t *testing.T) {
+	handler := newTestHandler(t)
+	coupon := postForm[map[string]any](t, handler, "/v1/coupons", url.Values{"amount_off": {"500"}, "currency": {"eur"}, "currency_options[aed][amount_off]": {"2000"}})
+	if coupon["currency_options"].(map[string]any)["aed"].(map[string]any)["amount_off"] != float64(2000) {
+		t.Fatalf("currency_options = %v", coupon["currency_options"])
+	}
+}

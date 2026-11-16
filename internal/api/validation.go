@@ -53,6 +53,7 @@ var (
 	portalFlowDataParamRE     = regexp.MustCompile(`^flow_data(\[[^\]]+\])+$`)
 	// Allow empty brackets for Stripe array form applies_to[products][].
 	couponAppliesToParamRE      = regexp.MustCompile(`^applies_to(\[[^\]]*\])+$`)
+	couponCurrencyOptionRE      = regexp.MustCompile(`^currency_options\[([a-z]{3})\]\[amount_off\]$`)
 	promotionRestrictionParamRE = regexp.MustCompile(`^restrictions(\[[^\]]+\])+$`)
 	schedulePhaseParamRE        = regexp.MustCompile(`^phases\[\d+\]\[(start_date|end_date|iterations|items|plans)\].*$`)
 	invoicePreviewItemParamRE   = regexp.MustCompile(`^((subscription_details|subscriptionDetails)\[items\]\[\d+\]\[(id|price|price_id|quantity)\]|(subscription_items|items)\[\d+\]\[(id|price|price_id|quantity)\])$`)
@@ -1989,7 +1990,7 @@ func validateCouponCreate(p params) error {
 			"redeem_by",
 			"max_redemptions",
 		},
-		AllowedRegex: []*regexp.Regexp{couponAppliesToParamRE},
+		AllowedRegex: []*regexp.Regexp{couponAppliesToParamRE, couponCurrencyOptionRE},
 		// percent_off is a Stripe number (may be fractional, e.g. 12.5).
 		Int64Params: []string{"amount_off", "duration_in_months", "redeem_by", "max_redemptions"},
 		FloatParams: []string{"percent_off"},

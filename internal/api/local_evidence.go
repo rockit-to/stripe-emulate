@@ -231,6 +231,21 @@ func (h *Handler) handleCoupons(w http.ResponseWriter, r *http.Request) {
 		if products := p.appliesToProducts(); len(products) > 0 {
 			coupon["applies_to"] = map[string]any{"products": products}
 		}
+		// An amount off in other currencies too: currency_options[aed][amount_off]=2000.
+		options := map[string]any{}
+		for key, value := range p.values {
+			if m := couponCurrencyOptionRE.FindStringSubmatch(key); m != nil {
+				amount, err := strconv.ParseInt(value, 10, 64)
+				if err != nil || amount <= 0 {
+					writeError(w, http.StatusBadRequest, invalidParam(key, "Must be a positive integer."))
+					return
+				}
+				options[m[1]] = map[string]any{"amount_off": amount}
+			}
+		}
+		if len(options) > 0 {
+			coupon["currency_options"] = options
+		}
 		if err := h.local.save(kindCoupon, id, coupon); err != nil {
 			writeError(w, http.StatusInternalServerError, err)
 			return
