@@ -625,7 +625,12 @@ func (h *Handler) handleProduct(w http.ResponseWriter, r *http.Request) {
 		})
 		writeResult(w, stripeProduct(product), err)
 	case http.MethodDelete:
-		if err := h.billing.DeleteProduct(r.Context(), id); err != nil {
+		// emulator_delete_unused_prices: delete as Stripe's Dashboard does, the product's unused prices with it.
+		deleteProduct := h.billing.DeleteProduct
+		if r.URL.Query().Get("emulator_delete_unused_prices") == "true" {
+			deleteProduct = h.billing.DeleteProductAndUnusedPrices
+		}
+		if err := deleteProduct(r.Context(), id); err != nil {
 			writeResult(w, nil, err)
 			return
 		}

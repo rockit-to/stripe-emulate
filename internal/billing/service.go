@@ -101,6 +101,7 @@ type Repository interface {
 	ListProducts(context.Context) ([]Product, error)
 	UpdateProduct(context.Context, string, Product) (Product, error)
 	DeleteProduct(context.Context, string) error
+	DeletePrice(context.Context, string) error
 
 	CreatePrice(context.Context, Price) (Price, error)
 	GetPrice(context.Context, string) (Price, error)
@@ -257,6 +258,66 @@ func (s *Service) DeleteProduct(ctx context.Context, id string) error {
 		}
 	}
 	return s.repo.DeleteProduct(ctx, id)
+}
+
+// DeleteProductAndUnusedPrices removes a product as Stripe's Dashboard does: its prices go first, when nothing uses them
+// (no subscription, checkout session or invoice item); a product with a price in use is refused as the API refuses it.
+func (s *Service) DeleteProductAndUnusedPrices(ctx context.Context, id string) error {
+	prices, err := s.repo.ListPrices(ctx)
+	if err != nil {
+		return err
+	}
+	used, err := s.usedPrices(ctx)
+	if err != nil {
+		return err
+	}
+	var own []string
+	for _, price := range prices {
+		if price.ProductID != id {
+			continue
+		}
+		if used[price.ID] {
+			return &InvalidRequestError{Message: "This product cannot be deleted because it has one or more user-created prices."}
+		}
+		own = append(own, price.ID)
+	}
+	for _, price := range own {
+		if err := s.repo.DeletePrice(ctx, price); err != nil {
+			return err
+		}
+	}
+	return s.repo.DeleteProduct(ctx, id)
+}
+
+// usedPrices: the prices a subscription, a checkout session or an invoice item refers to.
+func (s *Service) usedPrices(ctx context.Context) (map[string]bool, error) {
+	used := map[string]bool{}
+	subscriptions, err := s.repo.ListSubscriptions(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, subscription := range subscriptions {
+		for _, item := range subscription.Items {
+			used[item.PriceID] = true
+		}
+	}
+	sessions, err := s.repo.ListCheckoutSessions(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, session := range sessions {
+		for _, item := range session.LineItems {
+			used[item.PriceID] = true
+		}
+	}
+	items, err := s.ListInvoiceItems(ctx, InvoiceItemFilter{})
+	if err != nil {
+		return nil, err
+	}
+	for _, item := range items {
+		used[item.PriceID] = true
+	}
+	return used, nil
 }
 
 func (s *Service) CreatePrice(ctx context.Context, in Price) (Price, error) {

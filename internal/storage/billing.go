@@ -177,6 +177,20 @@ func (s *SQLiteStore) DeleteProduct(ctx context.Context, id string) error {
 	return nil
 }
 
+// DeletePrice removes a price nothing uses (the Dashboard's clean-up before it deletes a product).
+func (s *SQLiteStore) DeletePrice(ctx context.Context, id string) error {
+	result, err := s.db.ExecContext(ctx, `DELETE FROM prices WHERE id = ?`, id)
+	if err != nil {
+		return err
+	}
+	if changed, err := result.RowsAffected(); err != nil {
+		return err
+	} else if changed == 0 {
+		return billing.ErrNotFound
+	}
+	return nil
+}
+
 func (s *SQLiteStore) CreatePrice(ctx context.Context, p billing.Price) (billing.Price, error) {
 	if p.CreatedAt.IsZero() {
 		p.CreatedAt = time.Now().UTC()

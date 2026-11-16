@@ -58,4 +58,12 @@ func TestProductDefaultPriceAndActiveFilter(t *testing.T) {
 	if code, body := deleteStatus(t, handler, "/v1/products/"+old["id"].(string)); code != http.StatusOK {
 		t.Fatalf("delete without prices = %d %s, want 200", code, body)
 	}
+
+	// As the Dashboard deletes: the product's unused prices go with it.
+	if code, body := deleteStatus(t, handler, "/v1/products/"+loft["id"].(string)+"?emulator_delete_unused_prices=true"); code != http.StatusOK {
+		t.Fatalf("delete with unused prices = %d %s, want 200", code, body)
+	}
+	if code, _ := getStatus(t, handler, "/v1/prices/"+priceID); code != http.StatusNotFound {
+		t.Fatalf("price of the deleted product = %d, want 404", code)
+	}
 }

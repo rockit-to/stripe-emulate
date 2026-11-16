@@ -159,7 +159,7 @@ func DefaultClaims() []Claim {
 	add(http.MethodDelete, "/v1/customers/{id}", statefulL3)
 	add(http.MethodGet, "/v1/customers/search", Claim{Level: "L3", Stateful: true, Risks: []string{"supports a measured customer search subset for id, email, name, and metadata equality clauses joined by AND"}})
 	add(http.MethodGet, "/v1/products/search", Claim{Level: "L2", Risks: []string{"metadata equality filters only; no Stripe Search Query Language parity"}})
-	add(http.MethodDelete, "/v1/products/{id}", Claim{Level: "L3", Stateful: true, Risks: []string{"removes local product evidence; existing prices keep referencing the deleted product id"}})
+	add(http.MethodDelete, "/v1/products/{id}", Claim{Level: "L3", Stateful: true, Risks: []string{"refuses a product with prices, as the API does; emulator_delete_unused_prices=true deletes as the Dashboard does, its unused prices first"}})
 	add(http.MethodGet, "/v1/prices/search", Claim{Level: "L3", Stateful: true, Risks: []string{"supports a measured prices search subset for active, type, lookup_key, and metadata equality clauses joined by AND"}})
 
 	for _, method := range []string{http.MethodGet, http.MethodPost} {
