@@ -6822,6 +6822,12 @@ func paymentIntentMetadata(p params) map[string]string {
 		p.first("emulator_outcome", "deferred_outcome", "payment_intent_outcome"),
 		metadataValue(metadata, "emulator_outcome"),
 	)
+	if description := p.string("description"); description != "" {
+		if metadata == nil {
+			metadata = map[string]string{}
+		}
+		metadata["emulator_description"] = description
+	}
 	if actionType := p.first("emulator_next_action_type", "next_action_type"); actionType != "" {
 		if metadata == nil {
 			metadata = map[string]string{}

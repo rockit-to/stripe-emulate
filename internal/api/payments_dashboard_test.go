@@ -14,8 +14,9 @@ func TestPaymentsAsTheDashboardListsThem(t *testing.T) {
 	paid := postForm[map[string]any](t, handler, "/v1/payment_intents", url.Values{
 		"amount": {"18500"}, "currency": {"eur"}, "customer": {customer["id"].(string)},
 		"payment_method": {"pm_card_mastercard"}, "confirm": {"true"}, "payment_method_types[]": {"card"},
+		"description": {"Booking FLT-4823 · Antwerp studio"},
 	})
-	if paid["status"] != "succeeded" {
+	if paid["status"] != "succeeded" || paid["description"] != "Booking FLT-4823 · Antwerp studio" {
 		t.Fatalf("mastercard payment = %v", paid["status"])
 	}
 
