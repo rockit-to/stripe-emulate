@@ -394,7 +394,7 @@ func (h *Handler) handleTaxRates(w http.ResponseWriter, r *http.Request) {
 			"flat_amount":          nil,
 			"jurisdiction_level":   nil,
 			"rate_type":            "percentage",
-			"tax_type":             nil,
+			"tax_type":             emptyToNil(p.string("tax_type")),
 			"metadata":             nonNilMap(p.metadata()),
 			"created":              now.Unix(),
 			"livemode":             false,

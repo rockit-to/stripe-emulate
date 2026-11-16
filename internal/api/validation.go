@@ -759,6 +759,41 @@ func validatePayoutCreate(p params) error {
 	})
 }
 
+func validateShippingRateCreate(p params) error {
+	return p.validate(paramSpec{
+		Allowed:       []string{"display_name", "type", "fixed_amount[amount]", "fixed_amount[currency]", "tax_behavior", "tax_code"},
+		Required:      []string{"display_name", "fixed_amount[amount]", "fixed_amount[currency]"},
+		Int64Params:   []string{"fixed_amount[amount]"},
+		NonNegative:   []string{"fixed_amount[amount]"},
+		EnumParams:    map[string][]string{"type": {"fixed_amount"}, "tax_behavior": {"inclusive", "exclusive", "unspecified"}},
+		AllowMetadata: true,
+	})
+}
+
+func validateShippingRateUpdate(p params) error {
+	return p.validate(paramSpec{
+		Allowed:       []string{"active", "tax_behavior"},
+		BoolParams:    []string{"active"},
+		AllowMetadata: true,
+	})
+}
+
+func validateFeatureCreate(p params) error {
+	return p.validate(paramSpec{
+		Allowed:       []string{"name", "lookup_key"},
+		Required:      []string{"name", "lookup_key"},
+		AllowMetadata: true,
+	})
+}
+
+func validateFeatureUpdate(p params) error {
+	return p.validate(paramSpec{
+		Allowed:       []string{"name", "active"},
+		BoolParams:    []string{"active"},
+		AllowMetadata: true,
+	})
+}
+
 func validateTopupCreate(p params) error {
 	return p.validate(paramSpec{
 		Allowed:       []string{"id", "amount", "currency", "description", "statement_descriptor", "transfer_group"},
@@ -1911,8 +1946,10 @@ func validateTaxRateCreate(p params) error {
 			"state",
 			"jurisdiction",
 			"description",
+			"tax_type",
 		},
 		Required:      []string{"display_name", "percentage", "inclusive"},
+		EnumParams:    map[string][]string{"tax_type": {"amusement_tax", "communications_tax", "gst", "hst", "igst", "jct", "lease_tax", "pst", "qst", "retail_delivery_fee", "rst", "sales_tax", "service_tax", "vat"}},
 		BoolParams:    []string{"inclusive", "active"},
 		AllowMetadata: true,
 	}); err != nil {

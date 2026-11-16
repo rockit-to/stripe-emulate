@@ -476,6 +476,10 @@ func connectResourcePrefix(object string) string {
 		return "fr"
 	case ObjectTopup:
 		return "tu"
+	case ObjectShippingRate:
+		return "shr"
+	case ObjectFeature:
+		return "feat"
 	default:
 		return "conn"
 	}

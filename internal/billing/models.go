@@ -29,6 +29,8 @@ const (
 	ObjectApplicationFee   = "application_fee"
 	ObjectFeeRefund        = "fee_refund"
 	ObjectTopup            = "topup"
+	ObjectShippingRate     = "shipping_rate"
+	ObjectFeature          = "entitlements.feature"
 )
 
 const (
