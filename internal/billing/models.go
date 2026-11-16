@@ -104,6 +104,7 @@ type Product struct {
 	DefaultPriceID string            `json:"default_price,omitempty"`
 	Metadata       map[string]string `json:"metadata,omitempty"`
 	CreatedAt      time.Time         `json:"created_at,omitempty"`
+	UpdatedAt      time.Time         `json:"updated_at,omitempty"`
 }
 
 type Price struct {

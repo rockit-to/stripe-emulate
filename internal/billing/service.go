@@ -237,14 +237,24 @@ func (s *Service) ListProducts(ctx context.Context) ([]Product, error) {
 }
 
 func (s *Service) UpdateProduct(ctx context.Context, id string, in Product) (Product, error) {
+	in.UpdatedAt = s.now()
 	return s.repo.UpdateProduct(ctx, id, in)
 }
 
-// DeleteProduct removes local product evidence (DELETE /v1/products/{id}).
-// Existing prices keep referencing the deleted product id.
+// DeleteProduct removes a product (DELETE /v1/products/{id}). Like Stripe, only a
+// product without prices can be deleted.
 func (s *Service) DeleteProduct(ctx context.Context, id string) error {
 	if strings.TrimSpace(id) == "" {
 		return fmt.Errorf("%w: product is required", ErrInvalidInput)
+	}
+	prices, err := s.repo.ListPrices(ctx)
+	if err != nil {
+		return err
+	}
+	for _, price := range prices {
+		if price.ProductID == id {
+			return &InvalidRequestError{Message: "This product cannot be deleted because it has one or more user-created prices."}
+		}
 	}
 	return s.repo.DeleteProduct(ctx, id)
 }

@@ -7525,7 +7525,7 @@ func stripeProduct(product billing.Product) map[string]any {
 		"tax_details":          nil,
 		"type":                 "service",
 		"unit_label":           nil,
-		"updated":              unix(product.CreatedAt),
+		"updated":              unix(product.UpdatedAt),
 		"url":                  nil,
 	}
 }

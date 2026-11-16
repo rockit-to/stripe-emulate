@@ -1,7 +1,9 @@
 package api
 
 import (
+	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 )
 
@@ -47,5 +49,13 @@ func TestProductDefaultPriceAndActiveFilter(t *testing.T) {
 	updated := postForm[map[string]any](t, handler, "/v1/products/"+loft["id"].(string), url.Values{"default_price": {second["id"].(string)}})
 	if updated["default_price"] != second["id"] {
 		t.Fatalf("default_price after update = %#v, want %s", updated["default_price"], second["id"])
+	}
+
+	// Like Stripe: a product with prices cannot be deleted; one without can.
+	if code, body := deleteStatus(t, handler, "/v1/products/"+loft["id"].(string)); code != http.StatusBadRequest || !strings.Contains(body, "one or more user-created prices") {
+		t.Fatalf("delete with prices = %d %s, want 400", code, body)
+	}
+	if code, body := deleteStatus(t, handler, "/v1/products/"+old["id"].(string)); code != http.StatusOK {
+		t.Fatalf("delete without prices = %d %s, want 200", code, body)
 	}
 }
