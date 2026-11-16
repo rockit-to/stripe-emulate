@@ -40,3 +40,16 @@ func TestShippingRatesFeaturesAndTaxTypes(t *testing.T) {
 		t.Fatalf("first tax rate = %v, want the newest %v", first["id"], newer["id"])
 	}
 }
+
+func TestPromotionCodeRestrictions(t *testing.T) {
+	handler := newTestHandler(t)
+	coupon := postForm[map[string]any](t, handler, "/v1/coupons", url.Values{"percent_off": {"10"}})
+	promo := postForm[map[string]any](t, handler, "/v1/promotion_codes", url.Values{
+		"coupon": {coupon["id"].(string)}, "code": {"FIRST10"}, "max_redemptions": {"5"}, "expires_at": {"1900000000"},
+		"restrictions[first_time_transaction]": {"true"}, "restrictions[minimum_amount]": {"2000"}, "restrictions[minimum_amount_currency]": {"eur"},
+	})
+	restrictions := promo["restrictions"].(map[string]any)
+	if promo["max_redemptions"] != float64(5) || promo["expires_at"] != float64(1900000000) || restrictions["first_time_transaction"] != true || restrictions["minimum_amount"] != float64(2000) {
+		t.Fatalf("promotion code = %v", promo)
+	}
+}

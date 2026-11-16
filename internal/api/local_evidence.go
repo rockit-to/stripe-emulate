@@ -303,6 +303,19 @@ func (h *Handler) handlePromotionCodes(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		promo := promotionCodeEvidence(id, code, coupon, p.boolDefault("active", true), p.string("customer"), p.metadata(), now)
+		// What the code is limited to, as it was asked: its uses, its end, first orders, a minimum order.
+		if p.has("max_redemptions") {
+			promo["max_redemptions"] = p.int64("max_redemptions")
+		}
+		if p.has("expires_at") {
+			promo["expires_at"] = p.int64("expires_at")
+		}
+		restrictions := promo["restrictions"].(map[string]any)
+		restrictions["first_time_transaction"] = p.boolDefault("restrictions[first_time_transaction]", false)
+		if p.has("restrictions[minimum_amount]") {
+			restrictions["minimum_amount"] = p.int64("restrictions[minimum_amount]")
+			restrictions["minimum_amount_currency"] = emptyToNil(p.string("restrictions[minimum_amount_currency]"))
+		}
 		if err := h.local.save(kindPromotionCode, id, promo); err != nil {
 			writeError(w, http.StatusInternalServerError, err)
 			return
