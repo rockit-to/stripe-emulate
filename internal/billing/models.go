@@ -100,9 +100,10 @@ type Product struct {
 	Object      string            `json:"object"`
 	Name        string            `json:"name"`
 	Description string            `json:"description,omitempty"`
-	Active      bool              `json:"active"`
-	Metadata    map[string]string `json:"metadata,omitempty"`
-	CreatedAt   time.Time         `json:"created_at,omitempty"`
+	Active         bool              `json:"active"`
+	DefaultPriceID string            `json:"default_price,omitempty"`
+	Metadata       map[string]string `json:"metadata,omitempty"`
+	CreatedAt      time.Time         `json:"created_at,omitempty"`
 }
 
 type Price struct {

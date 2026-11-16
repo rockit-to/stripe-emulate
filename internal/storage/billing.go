@@ -99,15 +99,15 @@ func (s *SQLiteStore) CreateProduct(ctx context.Context, p billing.Product) (bil
 	if p.CreatedAt.IsZero() {
 		p.CreatedAt = time.Now().UTC()
 	}
-	if _, err := s.db.ExecContext(ctx, `INSERT INTO products (id, name, description, active, metadata, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?)`, p.ID, p.Name, p.Description, boolInt(p.Active), encodeMap(p.Metadata), encodeTime(p.CreatedAt), encodeTime(p.CreatedAt)); err != nil {
+	if _, err := s.db.ExecContext(ctx, `INSERT INTO products (id, name, description, active, default_price, metadata, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, p.ID, p.Name, p.Description, boolInt(p.Active), p.DefaultPriceID, encodeMap(p.Metadata), encodeTime(p.CreatedAt), encodeTime(p.CreatedAt)); err != nil {
 		return billing.Product{}, err
 	}
 	return s.GetProduct(ctx, p.ID)
 }
 
 func (s *SQLiteStore) GetProduct(ctx context.Context, id string) (billing.Product, error) {
-	row := s.db.QueryRowContext(ctx, `SELECT id, name, description, active, metadata, created_at FROM products WHERE id = ?`, id)
+	row := s.db.QueryRowContext(ctx, `SELECT id, name, description, active, default_price, metadata, created_at FROM products WHERE id = ?`, id)
 	p, err := scanProduct(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return billing.Product{}, &billing.NotFoundError{Message: fmt.Sprintf("No such product: '%s'", id), Param: "id"}
@@ -116,7 +116,7 @@ func (s *SQLiteStore) GetProduct(ctx context.Context, id string) (billing.Produc
 }
 
 func (s *SQLiteStore) ListProducts(ctx context.Context) ([]billing.Product, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, name, description, active, metadata, created_at FROM products ORDER BY id DESC`)
+	rows, err := s.db.QueryContext(ctx, `SELECT id, name, description, active, default_price, metadata, created_at FROM products ORDER BY id DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -144,11 +144,14 @@ func (s *SQLiteStore) UpdateProduct(ctx context.Context, id string, in billing.P
 		current.Description = in.Description
 	}
 	current.Active = in.Active
+	if in.DefaultPriceID != "" {
+		current.DefaultPriceID = in.DefaultPriceID
+	}
 	if in.Metadata != nil {
 		current.Metadata = in.Metadata
 	}
-	if _, err := s.db.ExecContext(ctx, `UPDATE products SET name = ?, description = ?, active = ?, metadata = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-		current.Name, current.Description, boolInt(current.Active), encodeMap(current.Metadata), id); err != nil {
+	if _, err := s.db.ExecContext(ctx, `UPDATE products SET name = ?, description = ?, active = ?, default_price = ?, metadata = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+		current.Name, current.Description, boolInt(current.Active), current.DefaultPriceID, encodeMap(current.Metadata), id); err != nil {
 		return billing.Product{}, err
 	}
 	return s.GetProduct(ctx, id)
@@ -1783,7 +1786,7 @@ func scanProduct(row scanner) (billing.Product, error) {
 	var p billing.Product
 	var active int
 	var metadata, createdAt string
-	if err := row.Scan(&p.ID, &p.Name, &p.Description, &active, &metadata, &createdAt); err != nil {
+	if err := row.Scan(&p.ID, &p.Name, &p.Description, &active, &p.DefaultPriceID, &metadata, &createdAt); err != nil {
 		return p, err
 	}
 	p.Object = billing.ObjectProduct

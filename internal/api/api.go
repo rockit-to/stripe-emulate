@@ -539,13 +539,33 @@ func (h *Handler) handleProducts(w http.ResponseWriter, r *http.Request) {
 			Active:      p.boolDefault("active", true),
 			Metadata:    p.metadata(),
 		})
+		if err == nil && p.has("default_price_data[currency]") {
+			product, err = h.createDefaultPrice(r.Context(), product, p)
+		}
 		writeResult(w, stripeProduct(product), err)
 	case http.MethodGet:
 		products, err := h.billing.ListProducts(r.Context())
-		writeResult(w, stripeListFromRequest(r, stripeProducts(products)), err)
+		writeResult(w, stripeListFromRequest(r, stripeProducts(filterProductList(products, r))), err)
 	default:
 		h.methodNotAllowed(w, r, "GET, POST")
 	}
+}
+
+// createDefaultPrice creates the price given as default_price_data and makes it
+// the product's default price.
+func (h *Handler) createDefaultPrice(ctx context.Context, product billing.Product, p params) (billing.Product, error) {
+	price, err := h.billing.CreatePrice(ctx, billing.Price{
+		ProductID:              product.ID,
+		Currency:               p.string("default_price_data[currency]"),
+		UnitAmount:             p.int64("default_price_data[unit_amount]"),
+		RecurringInterval:      p.string("default_price_data[recurring][interval]"),
+		RecurringIntervalCount: int(p.int64Default("default_price_data[recurring][interval_count]", 1)),
+		Active:                 true,
+	})
+	if err != nil {
+		return billing.Product{}, err
+	}
+	return h.billing.UpdateProduct(ctx, product.ID, billing.Product{Active: product.Active, DefaultPriceID: price.ID})
 }
 
 func (h *Handler) handleProductSearch(w http.ResponseWriter, r *http.Request) {
@@ -583,11 +603,23 @@ func (h *Handler) handleProduct(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusBadRequest, err)
 			return
 		}
+		current, err := h.billing.GetProduct(r.Context(), id)
+		if err != nil {
+			writeResult(w, nil, err)
+			return
+		}
+		if price := p.string("default_price"); price != "" {
+			if _, err := h.billing.GetPrice(r.Context(), price); err != nil {
+				writeResult(w, nil, err)
+				return
+			}
+		}
 		product, err := h.billing.UpdateProduct(r.Context(), id, billing.Product{
-			Name:        p.string("name"),
-			Description: p.string("description"),
-			Active:      p.boolDefault("active", true),
-			Metadata:    p.metadata(),
+			Name:           p.string("name"),
+			Description:    p.string("description"),
+			Active:         p.boolDefault("active", current.Active),
+			DefaultPriceID: p.string("default_price"),
+			Metadata:       p.metadata(),
 		})
 		writeResult(w, stripeProduct(product), err)
 	case http.MethodDelete:
@@ -7479,7 +7511,7 @@ func stripeProduct(product billing.Product) map[string]any {
 		"active":               product.Active,
 		"attributes":           []string{},
 		"created":              unix(product.CreatedAt),
-		"default_price":        nil,
+		"default_price":        emptyToNil(product.DefaultPriceID),
 		"description":          emptyToNil(product.Description),
 		"images":               []string{},
 		"livemode":             false,
@@ -9107,6 +9139,20 @@ func paymentIntentReceivedAmount(intent billing.PaymentIntent) int64 {
 		return intent.Amount
 	}
 	return 0
+}
+
+func filterProductList(products []billing.Product, r *http.Request) []billing.Product {
+	active := r.URL.Query().Get("active")
+	if active == "" {
+		return products
+	}
+	out := make([]billing.Product, 0, len(products))
+	for _, product := range products {
+		if product.Active == (active == "true") {
+			out = append(out, product)
+		}
+	}
+	return out
 }
 
 func filterPrices(prices []billing.Price, r *http.Request) []billing.Price {

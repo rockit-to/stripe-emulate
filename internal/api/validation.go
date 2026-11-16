@@ -476,16 +476,30 @@ func validateSearch(p params) error {
 
 func validateProductCreate(p params) error {
 	return p.validate(paramSpec{
-		Allowed:       []string{"id", "name", "description", "active"},
-		Required:      []string{"name"},
-		BoolParams:    []string{"active"},
+		Allowed: []string{
+			"id",
+			"name",
+			"description",
+			"active",
+			"default_price_data[currency]",
+			"default_price_data[unit_amount]",
+			"default_price_data[recurring][interval]",
+			"default_price_data[recurring][interval_count]",
+		},
+		Required:    []string{"name"},
+		BoolParams:  []string{"active"},
+		Int64Params: []string{"default_price_data[unit_amount]", "default_price_data[recurring][interval_count]"},
+		NonNegative: []string{"default_price_data[unit_amount]"},
+		EnumParams: map[string][]string{
+			"default_price_data[recurring][interval]": {"day", "week", "month", "year"},
+		},
 		AllowMetadata: true,
 	})
 }
 
 func validateProductUpdate(p params) error {
 	return p.validate(paramSpec{
-		Allowed:       []string{"name", "description", "active"},
+		Allowed:       []string{"name", "description", "active", "default_price"},
 		BoolParams:    []string{"active"},
 		AllowMetadata: true,
 	})
