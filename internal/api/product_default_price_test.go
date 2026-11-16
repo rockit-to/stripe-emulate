@@ -36,6 +36,9 @@ func TestProductDefaultPriceAndActiveFilter(t *testing.T) {
 	if expanded["id"] != priceID || expanded["unit_amount"].(float64) != 42000 {
 		t.Fatalf("expanded default_price = %#v", active[0].(map[string]any)["default_price"])
 	}
+	if all := getJSON[map[string]any](t, handler, "/v1/products")["data"].([]any); all[0].(map[string]any)["id"] != old["id"] {
+		t.Fatalf("first product = %#v, want the newest (%s)", all[0].(map[string]any)["id"], old["id"])
+	}
 	if archived := getJSON[map[string]any](t, handler, "/v1/products?active=false")["data"].([]any); len(archived) != 1 {
 		t.Fatalf("archived products = %d, want 1", len(archived))
 	}

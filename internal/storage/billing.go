@@ -116,7 +116,7 @@ func (s *SQLiteStore) GetProduct(ctx context.Context, id string) (billing.Produc
 }
 
 func (s *SQLiteStore) ListProducts(ctx context.Context) ([]billing.Product, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, name, description, active, default_price, metadata, created_at FROM products ORDER BY id DESC`)
+	rows, err := s.db.QueryContext(ctx, `SELECT id, name, description, active, default_price, metadata, created_at FROM products ORDER BY created_at DESC, id DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -195,7 +195,7 @@ func (s *SQLiteStore) GetPrice(ctx context.Context, id string) (billing.Price, e
 }
 
 func (s *SQLiteStore) ListPrices(ctx context.Context) ([]billing.Price, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, product_id, currency, unit_amount, lookup_key, recurring_interval, recurring_interval_count, active, metadata, created_at FROM prices ORDER BY id DESC`)
+	rows, err := s.db.QueryContext(ctx, `SELECT id, product_id, currency, unit_amount, lookup_key, recurring_interval, recurring_interval_count, active, metadata, created_at FROM prices ORDER BY created_at DESC, id DESC`)
 	if err != nil {
 		return nil, err
 	}
