@@ -24,6 +24,8 @@ type stripeAPIError struct {
 	Code        string `json:"code,omitempty"`
 	DeclineCode string `json:"decline_code,omitempty"`
 	DocURL      string `json:"doc_url,omitempty"`
+	// PaymentIntent: on a card error, the PaymentIntent the declined attempt left behind.
+	PaymentIntent map[string]any `json:"payment_intent,omitempty"`
 }
 
 func writeError(w http.ResponseWriter, status int, err error) {

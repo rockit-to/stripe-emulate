@@ -4390,7 +4390,7 @@ func (h *Handler) handlePaymentIntents(w http.ResponseWriter, r *http.Request) {
 				h.emitPaymentIntentWebhook(r, paymentIntentTerminalEvent(intent.Status), intent)
 			}
 		}
-		writeResult(w, stripePaymentIntent(intent), err)
+		writePaymentIntent(w, intent, err)
 	case http.MethodGet:
 		items, err := h.billing.ListPaymentIntents(r.Context())
 		data := make([]map[string]any, 0, len(items))
@@ -4520,7 +4520,7 @@ func (h *Handler) handlePaymentIntent(w http.ResponseWriter, r *http.Request) {
 		h.notFound(w, r)
 		return
 	}
-	writeResult(w, stripePaymentIntent(intent), err)
+	writePaymentIntent(w, intent, err)
 }
 
 func (h *Handler) handleSetupIntents(w http.ResponseWriter, r *http.Request) {
@@ -7466,9 +7466,11 @@ func paymentMethodLast4(paymentMethodID string) string {
 	switch strings.ToLower(strings.TrimSpace(paymentMethodID)) {
 	case "pm_card_visa", "pm_card_visa_debit":
 		return "4242"
+	case "pm_card_mastercard":
+		return "4444"
 	case "pm_card_three_secure", "pm_card_threesecure2required", "pm_card_authenticationrequired":
 		return "3220"
-	case "pm_card_chargecustomerfail", "pm_card_charge_declined", "pm_card_chargecustomerfail_attach":
+	case "pm_card_chargecustomerfail", "pm_card_charge_declined", "pm_card_chargecustomerfail_attach", "pm_card_chargedeclined", "pm_card_visa_chargedeclined":
 		return "0002"
 	default:
 		return "4242"
@@ -9050,9 +9052,20 @@ func stripeCharge(intent billing.PaymentIntent, refunds []billing.Refund) map[st
 		"paid":                true,
 		"payment_intent":      intent.ID,
 		"payment_method":      emptyToNil(intent.PaymentMethodID),
-		"refunded":            refunded > 0 && refunded >= intent.Amount,
-		"refunds":             stripeList("/v1/refunds?charge="+url.QueryEscape(chargeID), refundData),
-		"status":              "succeeded",
+		"payment_method_details": map[string]any{
+			"type": "card",
+			"card": map[string]any{
+				"brand":     paymentMethodBrand(intent.PaymentMethodID),
+				"exp_month": int(intent.CreatedAt.Month()),
+				"exp_year":  intent.CreatedAt.Year() + 1,
+				"funding":   paymentMethodFunding(intent.PaymentMethodID),
+				"last4":     paymentMethodLast4(intent.PaymentMethodID),
+				"wallet":    nil,
+			},
+		},
+		"refunded": refunded > 0 && refunded >= intent.Amount,
+		"refunds":  stripeList("/v1/refunds?charge="+url.QueryEscape(chargeID), refundData),
+		"status":   "succeeded",
 	}
 }
 
@@ -9900,6 +9913,22 @@ func sanitizeID(value string) string {
 		return "emulator"
 	}
 	return b.String()
+}
+
+// writePaymentIntent answers with a PaymentIntent, or, when its card was just declined, as Stripe does: a 402
+// card_error that carries the PaymentIntent.
+func writePaymentIntent(w http.ResponseWriter, intent billing.PaymentIntent, err error) {
+	if err == nil && intent.Status == "requires_payment_method" && intent.FailureCode != "" {
+		writeStripeError(w, http.StatusPaymentRequired, stripeAPIError{
+			Type:          stripeErrorCard,
+			Message:       intent.FailureMessage,
+			Code:          intent.FailureCode,
+			DeclineCode:   intent.DeclineCode,
+			PaymentIntent: stripePaymentIntent(intent),
+		})
+		return
+	}
+	writeResult(w, stripePaymentIntent(intent), err)
 }
 
 func writeResult(w http.ResponseWriter, value any, err error) {

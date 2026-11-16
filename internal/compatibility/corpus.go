@@ -880,12 +880,10 @@ func builtinCorpus() []caseSpec {
 					Params: map[string]string{"payment_method": "pm_card_visa_chargeDeclined"},
 				},
 			},
+			// Like Stripe: a declined card answers 402 with a card_error (that carries the PaymentIntent).
 			Expect: Observation{
-				HTTPStatus:          http.StatusOK,
-				Object:              "payment_intent",
-				ObjectStatus:        "requires_payment_method",
-				PaymentIntentStatus: "requires_payment_method",
-				PaymentIntentError: &ErrorObservation{
+				HTTPStatus: http.StatusPaymentRequired,
+				Error: &ErrorObservation{
 					Type:        "card_error",
 					Code:        "card_declined",
 					DeclineCode: "generic_decline",

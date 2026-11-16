@@ -30,7 +30,7 @@ func TestMintedPaymentMethodKeepsTokenBehavior(t *testing.T) {
 	}
 
 	declining := postForm[paymentMethod](t, handler, "/v1/payment_methods/pm_card_visa_chargeDeclined/attach", url.Values{"customer": {customer.ID}})
-	intent := postForm[struct {
+	intent := postDeclined[struct {
 		ID               string `json:"id"`
 		Status           string `json:"status"`
 		PaymentMethod    string `json:"payment_method"`

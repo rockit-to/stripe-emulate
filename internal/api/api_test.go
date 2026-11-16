@@ -1341,7 +1341,7 @@ func TestDirectPaymentIntentAndSetupIntentStateMachines(t *testing.T) {
 		t.Fatalf("captured payment intent = %#v, want succeeded", captured)
 	}
 
-	declined := postForm[struct {
+	declined := postDeclined[struct {
 		ID               string `json:"id"`
 		Status           string `json:"status"`
 		LastPaymentError struct {
@@ -1371,7 +1371,7 @@ func TestDirectPaymentIntentAndSetupIntentStateMachines(t *testing.T) {
 		"email": {"customer-default-outcome@example.test"},
 		"metadata[emulator_default_payment_intent_outcome]": {"card_declined"},
 	})
-	customerDefaultDeclined := postForm[struct {
+	customerDefaultDeclined := postDeclined[struct {
 		Status           string            `json:"status"`
 		Metadata         map[string]string `json:"metadata"`
 		LastPaymentError struct {
@@ -1413,7 +1413,7 @@ func TestDirectPaymentIntentAndSetupIntentStateMachines(t *testing.T) {
 	if deferredDecline.Status != "requires_payment_method" || deferredDecline.Metadata[billing.MetadataPaymentIntentOutcome] != "card_declined" {
 		t.Fatalf("deferred decline intent = %#v, want stored outcome metadata without confirmation", deferredDecline)
 	}
-	deferredDeclined := postForm[struct {
+	deferredDeclined := postDeclined[struct {
 		Status           string            `json:"status"`
 		PaymentMethod    string            `json:"payment_method"`
 		Metadata         map[string]string `json:"metadata"`
@@ -3733,7 +3733,7 @@ func TestFixtureCustomerDefaultPaymentIntentOutcome(t *testing.T) {
 		t.Fatalf("apply result = %#v, want customer default payment intent outcome metadata", applied)
 	}
 
-	intent := postForm[struct {
+	intent := postDeclined[struct {
 		Status           string            `json:"status"`
 		Metadata         map[string]string `json:"metadata"`
 		LastPaymentError struct {
@@ -7642,6 +7642,27 @@ func getStatus(t *testing.T, handler http.Handler, path string) (int, string) {
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 	return rec.Code, rec.Body.String()
+}
+
+// postDeclined posts a confirmation whose card is declined: Stripe answers 402 with a card_error, and the
+// PaymentIntent it left behind is the error's payment_intent.
+func postDeclined[T any](t *testing.T, handler http.Handler, path string, values url.Values) T {
+	t.Helper()
+	code, body := postFormStatus(t, handler, path, values)
+	var declined struct {
+		Error struct {
+			Type          string          `json:"type"`
+			PaymentIntent json.RawMessage `json:"payment_intent"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal([]byte(body), &declined); err != nil || code != http.StatusPaymentRequired || declined.Error.Type != "card_error" {
+		t.Fatalf("POST %s = %d %s, want 402 card_error", path, code, body)
+	}
+	var intent T
+	if err := json.Unmarshal(declined.Error.PaymentIntent, &intent); err != nil {
+		t.Fatalf("decode payment_intent of %s: %v", body, err)
+	}
+	return intent
 }
 
 func getJSON[T any](t *testing.T, handler http.Handler, path string) T {

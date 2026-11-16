@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/chelokot/stripe-emulate/internal/billing"
 )
 
 type bufferedResponseWriter struct {
@@ -177,6 +179,18 @@ func (h *Handler) expandableObject(r *http.Request, id string) (any, bool) {
 			return nil, false
 		}
 		object = stripePaymentIntent(intent)
+	case strings.HasPrefix(id, "pm_"):
+		object = stripePaymentMethod("", h.paymentMethod(ctx, id))
+	case strings.HasPrefix(id, "ch_pi_"):
+		intent, err := h.billing.GetPaymentIntent(ctx, strings.TrimPrefix(id, "ch_"))
+		if err != nil {
+			return nil, false
+		}
+		refunds, err := h.billing.ListRefunds(ctx, billing.RefundFilter{ChargeID: id})
+		if err != nil {
+			return nil, false
+		}
+		object = stripeCharge(intent, refunds)
 	case strings.HasPrefix(id, "txn_"):
 		intent, err := h.billing.GetPaymentIntent(ctx, strings.TrimPrefix(id, "txn_"))
 		if err != nil {

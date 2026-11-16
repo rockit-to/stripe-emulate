@@ -1977,6 +1977,14 @@ func (s *Service) AdvanceTestClock(ctx context.Context, clockID string, frozenTi
 	return updated, result, nil
 }
 
+// paymentIntentOfCharge: the PaymentIntent a charge belongs to; a PaymentIntent's charge is "ch_" + its id.
+func paymentIntentOfCharge(chargeID string) string {
+	if strings.HasPrefix(chargeID, "ch_pi_") {
+		return strings.TrimPrefix(chargeID, "ch_")
+	}
+	return ""
+}
+
 func (s *Service) CreateRefund(ctx context.Context, in Refund) (Refund, error) {
 	now := s.now()
 	if strings.TrimSpace(in.ID) == "" {
@@ -1984,9 +1992,9 @@ func (s *Service) CreateRefund(ctx context.Context, in Refund) (Refund, error) {
 	}
 	in.Object = ObjectRefund
 	in.Status = firstNonEmpty(strings.TrimSpace(in.Status), "succeeded")
-	in.Currency = strings.ToLower(firstNonEmpty(strings.TrimSpace(in.Currency), "usd"))
+	in.Currency = strings.ToLower(strings.TrimSpace(in.Currency))
 	in.ChargeID = strings.TrimSpace(in.ChargeID)
-	in.PaymentIntentID = strings.TrimSpace(in.PaymentIntentID)
+	in.PaymentIntentID = firstNonEmpty(strings.TrimSpace(in.PaymentIntentID), paymentIntentOfCharge(in.ChargeID))
 	in.InvoiceID = strings.TrimSpace(in.InvoiceID)
 	charged := int64(0)
 	if in.PaymentIntentID != "" {
@@ -2015,6 +2023,7 @@ func (s *Service) CreateRefund(ctx context.Context, in Refund) (Refund, error) {
 			charged = invoice.AmountPaid
 		}
 	}
+	in.Currency = firstNonEmpty(in.Currency, "usd")
 	if in.ChargeID == "" && in.PaymentIntentID != "" {
 		in.ChargeID = "ch_" + sanitizeID(in.PaymentIntentID)
 	}
@@ -4179,7 +4188,7 @@ func checkoutOutcomeFor(outcome string) (checkoutOutcomeSpec, bool) {
 			PaymentIntentStatus: "succeeded",
 			PaymentMethodID:     paymentMethodID(normalized),
 		}, true
-	case "failure", "payment_failed", "failed", "card_declined", "generic_decline", "pm_card_visa_chargedeclined":
+	case "failure", "payment_failed", "failed", "card_declined", "generic_decline", "pm_card_visa_chargedeclined", "pm_card_chargedeclined":
 		return failedCheckoutOutcome("card_declined", paymentMethodID(normalized), "card_declined", "generic_decline", "Your card was declined."), true
 	case "insufficient_funds", "pm_card_visa_chargedeclinedinsufficientfunds":
 		return failedCheckoutOutcome("insufficient_funds", paymentMethodID(normalized), "card_declined", "insufficient_funds", "Your card has insufficient funds."), true
