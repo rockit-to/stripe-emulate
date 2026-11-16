@@ -8992,7 +8992,7 @@ func stripeBalanceTransaction(intent billing.PaymentIntent) map[string]any {
 		"available_on":       unix(availableOn),
 		"created":            unix(intent.CreatedAt),
 		"currency":           intent.Currency,
-		"description":        nil,
+		"description":        emptyToNil(intent.Metadata["emulator_description"]),
 		"exchange_rate":      nil,
 		"fee":                fee,
 		"fee_details":        []map[string]any{{"amount": fee, "application": nil, "currency": intent.Currency, "description": "Stripe processing fees", "type": "stripe_fee"}},

@@ -170,14 +170,21 @@ func (h *Handler) balanceTransactions(r *http.Request) ([]map[string]any, error)
 		return nil, err
 	}
 	out := []map[string]any{}
+	descriptions := map[string]string{}
 	for _, intent := range intents {
 		if intent.Status == "succeeded" {
 			out = append(out, stripeBalanceTransaction(intent))
 		}
+		descriptions[intent.ID] = intent.Metadata["emulator_description"]
 	}
 	for _, refund := range refunds {
 		if refund.Status != "failed" && refund.Status != "canceled" {
-			out = append(out, balanceMovement("txn_"+refund.ID, refund.ID, "refund", -refund.Amount, refund.Currency, refund.CreatedAt, refund.CreatedAt.Add(settlementDelay)))
+			txn := balanceMovement("txn_"+refund.ID, refund.ID, "refund", -refund.Amount, refund.Currency, refund.CreatedAt, refund.CreatedAt.Add(settlementDelay))
+			// As Stripe describes a refund: after the payment it gives back.
+			if description := descriptions[refund.PaymentIntentID]; description != "" {
+				txn["description"] = "REFUND FOR CHARGE (" + description + ")"
+			}
+			out = append(out, txn)
 		}
 	}
 	topups, err := h.billing.ListConnectResources(r.Context(), billing.ConnectResourceFilter{Object: billing.ObjectTopup, Status: "succeeded"})
@@ -186,7 +193,9 @@ func (h *Handler) balanceTransactions(r *http.Request) ([]map[string]any, error)
 	}
 	for _, topup := range topups {
 		if topup.AccountID == r.Header.Get("Stripe-Account") {
-			out = append(out, balanceMovement("txn_"+topup.ID, topup.ID, "topup", topup.Amount, strings.ToLower(topup.Currency), topup.CreatedAt, topup.CreatedAt))
+			txn := balanceMovement("txn_"+topup.ID, topup.ID, "topup", topup.Amount, strings.ToLower(topup.Currency), topup.CreatedAt, topup.CreatedAt)
+			txn["description"] = emptyToNil(topup.Description)
+			out = append(out, txn)
 		}
 	}
 	account := r.Header.Get("Stripe-Account")
