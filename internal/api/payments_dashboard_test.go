@@ -27,6 +27,12 @@ func TestPaymentsAsTheDashboardListsThem(t *testing.T) {
 		t.Fatalf("declined card = %d %s, want 402 card_declined", code, body)
 	}
 
+	// Sending a receipt: the PaymentIntent's receipt_email.
+	sent := postForm[map[string]any](t, handler, "/v1/payment_intents/"+paid["id"].(string), url.Values{"receipt_email": {"jenny.rosen@example.com"}})
+	if sent["receipt_email"] != "jenny.rosen@example.com" || sent["description"] != "Booking FLT-4823 · Antwerp studio" {
+		t.Fatalf("after receipt_email = %v / %v", sent["receipt_email"], sent["description"])
+	}
+
 	charge := paid["latest_charge"].(string)
 	refund := postForm[map[string]any](t, handler, "/v1/refunds", url.Values{"charge": {charge}, "amount": {"9500"}})
 	if refund["currency"] != "eur" || refund["payment_intent"] != paid["id"] {

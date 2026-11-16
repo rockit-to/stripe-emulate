@@ -1767,7 +1767,7 @@ func validateSubscriptionMigrate(p params) error {
 
 func validatePaymentIntentUpdate(p params) error {
 	return p.validate(paramSpec{
-		Allowed:       []string{"description"},
+		Allowed:       []string{"description", "receipt_email"},
 		AllowMetadata: true,
 	})
 }

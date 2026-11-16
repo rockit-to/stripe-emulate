@@ -4456,11 +4456,13 @@ func (h *Handler) handlePaymentIntent(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			metadata := p.metadata()
-			if description := p.string("description"); description != "" {
-				if metadata == nil {
-					metadata = map[string]string{}
+			for param, key := range map[string]string{"description": "emulator_description", "receipt_email": "emulator_receipt_email"} {
+				if value := p.string(param); value != "" {
+					if metadata == nil {
+						metadata = map[string]string{}
+					}
+					metadata[key] = value
 				}
-				metadata["emulator_description"] = description
 			}
 			intent, err := h.billing.UpdatePaymentIntentDetails(r.Context(), id, metadata)
 			writeResult(w, stripePaymentIntent(intent), err)
