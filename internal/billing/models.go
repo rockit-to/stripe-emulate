@@ -99,10 +99,10 @@ type CustomerUpdate struct {
 }
 
 type Product struct {
-	ID          string            `json:"id"`
-	Object      string            `json:"object"`
-	Name        string            `json:"name"`
-	Description string            `json:"description,omitempty"`
+	ID             string            `json:"id"`
+	Object         string            `json:"object"`
+	Name           string            `json:"name"`
+	Description    string            `json:"description,omitempty"`
 	Active         bool              `json:"active"`
 	DefaultPriceID string            `json:"default_price,omitempty"`
 	Metadata       map[string]string `json:"metadata,omitempty"`
@@ -160,9 +160,11 @@ type LineAmount struct {
 }
 
 type CheckoutSession struct {
-	ID                  string     `json:"id"`
-	Object              string     `json:"object"`
-	CustomerID          string     `json:"customer"`
+	ID         string `json:"id"`
+	Object     string `json:"object"`
+	CustomerID string `json:"customer"`
+	// CustomerEmail is customer_email: a guest's address, filled in on the page, when there is no customer.
+	CustomerEmail       string     `json:"customer_email,omitempty"`
 	Mode                string     `json:"mode"`
 	LineItems           []LineItem `json:"line_items"`
 	Discounts           []Discount `json:"discounts,omitempty"`

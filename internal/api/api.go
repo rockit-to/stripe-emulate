@@ -1726,6 +1726,7 @@ func (h *Handler) handleCheckoutSessions(w http.ResponseWriter, r *http.Request)
 		}
 		session, err := h.billing.CreateCheckoutSession(r.Context(), billing.CheckoutSession{
 			CustomerID:               p.first("customer", "customer_id"),
+			CustomerEmail:            p.string("customer_email"),
 			Mode:                     mode,
 			LineItems:                lineItems,
 			Discounts:                discounts,
@@ -8020,6 +8021,12 @@ func (h *Handler) stripeCheckoutSession(r *http.Request, session billing.Checkou
 		paymentMethodCollection, customerCreation = "if_required", "if_required"
 	}
 	var customerDetails, savedPaymentMethodOptions any
+	if session.CustomerID == "" && session.CustomerEmail != "" && session.Status == "complete" {
+		customerDetails = map[string]any{
+			"address": nil, "business_name": nil, "email": session.CustomerEmail, "individual_name": nil,
+			"name": nil, "phone": nil, "tax_exempt": "none", "tax_ids": []any{},
+		}
+	}
 	if session.CustomerID != "" {
 		customerCreation = nil
 		savedPaymentMethodOptions = map[string]any{"allow_redisplay_filters": []string{"always"}, "payment_method_remove": "disabled", "payment_method_save": nil}
@@ -8071,7 +8078,7 @@ func (h *Handler) stripeCheckoutSession(r *http.Request, session billing.Checkou
 		"customer_account":                     nil,
 		"customer_creation":                    customerCreation,
 		"customer_details":                     customerDetails,
-		"customer_email":                       nil,
+		"customer_email":                       emptyToNil(session.CustomerEmail),
 		"discounts":                            discountRefs,
 		"expires_at":                           session.CreatedAt.Add(24 * time.Hour).Unix(),
 		"integration_identifier":               nil,

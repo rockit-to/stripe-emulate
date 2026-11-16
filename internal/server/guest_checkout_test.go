@@ -12,7 +12,7 @@ import (
 func TestGuestPaymentCheckoutPaysIntoItsRun(t *testing.T) {
 	srv := newKeyedServer(t)
 	key := RunKey(testKeySecret, "team-a")
-	body := "mode=payment&success_url=https://shop.example/ok&cancel_url=https://shop.example/no" +
+	body := "mode=payment&customer_email=guest@example.test&success_url=https://shop.example/ok&cancel_url=https://shop.example/no" +
 		"&line_items[0][quantity]=1&line_items[0][price_data][currency]=eur" +
 		"&line_items[0][price_data][unit_amount]=12000&line_items[0][price_data][product_data][name]=Ghent canal house"
 	rec := keyed(t, srv, http.MethodPost, "/v1/checkout/sessions", key, body)
@@ -23,12 +23,13 @@ func TestGuestPaymentCheckoutPaysIntoItsRun(t *testing.T) {
 		ID               string  `json:"id"`
 		Customer         *string `json:"customer"`
 		CustomerCreation string  `json:"customer_creation"`
+		CustomerEmail    string  `json:"customer_email"`
 		AmountTotal      int64   `json:"amount_total"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &session); err != nil {
 		t.Fatalf("decode session: %v", err)
 	}
-	if session.Customer != nil || session.CustomerCreation != "if_required" || session.AmountTotal != 12000 {
+	if session.Customer != nil || session.CustomerCreation != "if_required" || session.CustomerEmail != "guest@example.test" || session.AmountTotal != 12000 {
 		t.Fatalf("guest session: customer %v, customer_creation %q, amount_total %d", session.Customer, session.CustomerCreation, session.AmountTotal)
 	}
 
@@ -40,11 +41,14 @@ func TestGuestPaymentCheckoutPaysIntoItsRun(t *testing.T) {
 		Status        string `json:"status"`
 		PaymentStatus string `json:"payment_status"`
 		PaymentIntent string `json:"payment_intent"`
+		Details       struct {
+			Email string `json:"email"`
+		} `json:"customer_details"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &paid); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	if paid.Status != "complete" || paid.PaymentStatus != "paid" || paid.PaymentIntent == "" {
+	if paid.Status != "complete" || paid.PaymentStatus != "paid" || paid.PaymentIntent == "" || paid.Details.Email != "guest@example.test" {
 		t.Fatalf("after paying: %s", rec.Body.String())
 	}
 

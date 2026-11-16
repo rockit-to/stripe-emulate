@@ -837,6 +837,7 @@ func validateCheckoutSessionCreate(p params) error {
 		Allowed: []string{
 			"customer",
 			"customer_id",
+			"customer_email",
 			"mode",
 			"success_url",
 			"cancel_url",
@@ -891,6 +892,9 @@ func validateCheckoutSessionCreate(p params) error {
 	}
 	if mode != "payment" && !p.hasAny("customer", "customer_id") {
 		return missingParam("customer")
+	}
+	if p.hasAny("customer", "customer_id") && p.has("customer_email") {
+		return &validationError{Message: "You may only specify one of these parameters: customer, customer_email.", Param: "customer_email"}
 	}
 	if _, err := p.checkoutLineTaxRateIDs(mode); err != nil {
 		return err
